@@ -23,7 +23,7 @@ dependencies = [
     "torch",
     "plyfile==0.8.1",
     "tqdm",
-    "diff_gaussian_rasterization@git+https://github.com/graphdeco-inria/diff-gaussian-rasterization.git",
+    "diff_gaussian_rasterization@git+https://github.com/tobias-kirschstein/diff-gaussian-rasterization.git",
     "simple_knn@git+https://gitlab.inria.fr/bkerbl/simple-knn.git",
 ]
 
