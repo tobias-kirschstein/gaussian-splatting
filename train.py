@@ -12,16 +12,17 @@
 import os
 import torch
 from random import randint
-from utils.loss_utils import l1_loss, ssim
-from gaussian_renderer import render, network_gui
+from gaussian_splatting.utils.loss_utils import l1_loss, ssim
+from gaussian_splatting.gaussian_renderer import render
+from gaussian_splatting.gaussian_renderer import network_gui
 import sys
-from scene import Scene, GaussianModel
-from utils.general_utils import safe_state
+from gaussian_splatting.scene import Scene, GaussianModel
+from gaussian_splatting.utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
-from utils.image_utils import psnr
+from gaussian_splatting.utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
-from arguments import ModelParams, PipelineParams, OptimizationParams
+from gaussian_splatting.arguments import ModelParams, PipelineParams, OptimizationParams
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True

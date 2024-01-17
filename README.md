@@ -1,3 +1,18 @@
+# Forknote:
+This is a library adaptation of the 3D Gaussian Splatting repo.  
+All code has been moved into a `gaussian_splatting` module.  
+As a result, the repository can be installed via pip:
+```bash
+pip install gaussian_splatting@git+https://github.com/tobias-kirschstein/gaussian-splatting.git
+```
+
+You can then import Gaussian Splatting's renderer via
+```python
+from gaussian_splatting.gaussian_renderer import render
+```
+
+<hr/>
+
 # 3D Gaussian Splatting for Real-Time Radiance Field Rendering
 Bernhard Kerbl*, Georgios Kopanas*, Thomas Leimkühler, George Drettakis (* indicates equal contribution)<br>
 | [Webpage](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) | [Full Paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/3d_gaussian_splatting_high.pdf) | [Video](https://youtu.be/T_kXY43VZnk) | [Other GRAPHDECO Publications](http://www-sop.inria.fr/reves/publis/gdindex.php) | [FUNGRAPH project page](https://fungraph.inria.fr) |<br>
