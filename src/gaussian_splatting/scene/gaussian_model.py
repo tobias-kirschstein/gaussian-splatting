@@ -21,15 +21,16 @@ from simple_knn._C import distCUDA2
 from gaussian_splatting.utils.graphics_utils import BasicPointCloud
 from gaussian_splatting.utils.general_utils import strip_symmetric, build_scaling_rotation
 
+
+def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
+    L = build_scaling_rotation(scaling_modifier * scaling, rotation)
+    actual_covariance = L @ L.transpose(1, 2)
+    symm = strip_symmetric(actual_covariance)
+    return symm
+
 class GaussianModel:
 
     def setup_functions(self):
-        def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
-            L = build_scaling_rotation(scaling_modifier * scaling, rotation)
-            actual_covariance = L @ L.transpose(1, 2)
-            symm = strip_symmetric(actual_covariance)
-            return symm
-        
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
