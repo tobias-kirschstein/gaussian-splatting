@@ -1,8 +1,8 @@
 [submodule "submodules/simple-knn"]
 	path = submodules/simple-knn
 	url = https://gitlab.inria.fr/bkerbl/simple-knn.git
-[submodule "submodules/diff-gaussian-rasterization"]
-	path = submodules/diff-gaussian-rasterization
+[submodule "submodules/diff-gaussian-rasterization-distwar"]
+	path = submodules/diff-gaussian-rasterization-distwar
 	url = git@github.com:Accelsnow/diff-gaussian-rasterization-distwar.git
 [submodule "SIBR_viewers"]
 	path = SIBR_viewers
