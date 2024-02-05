@@ -25,6 +25,7 @@ dependencies = [
     "tqdm",
     "diff_gaussian_rasterization@git+https://github.com/Accelsnow/diff-gaussian-rasterization-distwar.git",
     "simple_knn@git+https://gitlab.inria.fr/bkerbl/simple-knn.git",
+    "dreifus"
 ]
 
 [project.optional-dependencies]
