@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gaussian_splatting"
-version = "0.0.1"
+version = "0.0.2"
 description = "<<<ENTER_DESCRIPTION>>>"
 authors = [
     { name = "Tobias Kirschstein", email = "tobias.kirschstein@gmail.com" },
@@ -24,6 +24,7 @@ dependencies = [
     "plyfile==0.8.1",
     "tqdm",
     "diff_gaussian_rasterization@git+https://github.com/Accelsnow/diff-gaussian-rasterization-distwar.git",
+    "depth_diff_gaussian_rasterization@git+https://github.com/tobias-kirschstein/depth-diff-gaussian-rasterization.git",
     "simple_knn@git+https://gitlab.inria.fr/bkerbl/simple-knn.git",
     "dreifus"
 ]

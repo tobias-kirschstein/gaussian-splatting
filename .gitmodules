@@ -4,6 +4,9 @@
 [submodule "submodules/diff-gaussian-rasterization"]
 	path = submodules/diff-gaussian-rasterization
 	url = https://github.com/Accelsnow/diff-gaussian-rasterization-distwar.git
+[submodule "submodules/depth-diff-gaussian-rasterization"]
+	path = submodules/depth-diff-gaussian-rasterization
+	url = https://github.com/tobias-kirschstein/depth-diff-gaussian-rasterization.git
 [submodule "SIBR_viewers"]
 	path = SIBR_viewers
 	url = https://gitlab.inria.fr/sibr/sibr_core.git

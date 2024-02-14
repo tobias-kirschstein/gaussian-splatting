@@ -83,7 +83,9 @@ def camera_to_JSON(id, camera: Camera):
         'position': pos.tolist(),
         'rotation': serializable_array_2d,
         'fy': fov2focal(camera.FovY, camera.height),
-        'fx': fov2focal(camera.FovX, camera.width)
+        'fx': fov2focal(camera.FovX, camera.width),
+        'cx': camera.cx,
+        'cy': camera.cy
     }
     return camera_entry
 
@@ -101,9 +103,8 @@ def GS_camera_to_pose(camera: Camera) -> Pose:
 def GS_camera_to_intrinsics(camera: Camera) -> Intrinsics:
     fx = fov_to_focal_length(camera.FoVx, camera.image_width)
     fy = fov_to_focal_length(camera.FoVy, camera.image_height)
-    # TODO: Gaussian splatting always assumes principal point to be in center
-    cx = camera.image_width / 2
-    cy = camera.image_height / 2
+    cx = camera.cx
+    cy = camera.cy
     intrinsics = Intrinsics(fx, fy, cx=cx, cy=cy)
     return intrinsics
 
@@ -111,14 +112,16 @@ def GS_camera_to_intrinsics(camera: Camera) -> Intrinsics:
 def pose_to_GS_camera(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int) -> Camera:
     fov_x = intrinsics.get_fovx(img_w)
     fov_y = intrinsics.get_fovy(img_h)
-    dummy_img = torch.zeros((3, img_h, img_w))
+    cx = intrinsics.cx
+    cy = intrinsics.cy
+    dummy_img = torch.empty((3, img_h, img_w))
 
-    pose.change_pose_type(PoseType.CAM_2_WORLD)
-    pose.change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV)
-    pose.change_pose_type(PoseType.WORLD_2_CAM)
+    pose = pose.change_pose_type(PoseType.CAM_2_WORLD, inplace=False)
+    pose = pose.change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV, inplace=False)
+    pose = pose.change_pose_type(PoseType.WORLD_2_CAM, inplace=False)
     T = pose.get_translation()
     R = pose.get_rotation_matrix().transpose()
 
-    camera = Camera(0, R, T, fov_x, fov_y, dummy_img, None, None, None)
+    camera = Camera(0, R, T, fov_x, fov_y, dummy_img, None, None, None, cx=cx, cy=cy)
 
     return camera

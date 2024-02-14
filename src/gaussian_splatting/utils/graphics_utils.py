@@ -12,12 +12,14 @@
 import torch
 import math
 import numpy as np
-from typing import NamedTuple
+from typing import NamedTuple, Optional
+
 
 class BasicPointCloud(NamedTuple):
-    points : np.array
-    colors : np.array
-    normals : np.array
+    points: np.array
+    colors: np.array
+    normals: np.array
+
 
 def geom_transform_points(points, transf_matrix):
     P, _ = points.shape
@@ -28,12 +30,14 @@ def geom_transform_points(points, transf_matrix):
     denom = points_out[..., 3:] + 0.0000001
     return (points_out[..., :3] / denom).squeeze(dim=0)
 
+
 def getWorld2View(R, t):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = R.transpose()
     Rt[:3, 3] = t
     Rt[3, 3] = 1.0
     return np.float32(Rt)
+
 
 def getWorld2View2(R, t, translate=np.array([.0, .0, .0]), scale=1.0):
     Rt = np.zeros((4, 4))
@@ -48,7 +52,11 @@ def getWorld2View2(R, t, translate=np.array([.0, .0, .0]), scale=1.0):
     Rt = np.linalg.inv(C2W)
     return np.float32(Rt)
 
-def getProjectionMatrix(znear, zfar, fovX, fovY):
+
+def getProjectionMatrix(znear: float, zfar: float,
+                        fovX: float, fovY: float,
+                        width: int, height: int,
+                        cx: Optional[float] = None, cy: Optional[float] = None):
     tanHalfFovY = math.tan((fovY / 2))
     tanHalfFovX = math.tan((fovX / 2))
 
@@ -56,6 +64,22 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     bottom = -top
     right = tanHalfFovX * znear
     left = -right
+
+    # shift the frame window due to the non-zero principle point offsets
+    # Assume principle point is center of image if not given
+    cx = width / 2 if cx is None else cx
+    cy = height / 2 if cy is None else cy
+    focal_x = fov2focal(fovX, width)
+    focal_y = fov2focal(fovY, height)
+    offset_x = cx - (width / 2)
+    offset_x = (offset_x / focal_x) * znear
+    offset_y = cy - (height / 2)
+    offset_y = (offset_y / focal_y) * znear
+
+    top = top + offset_y
+    left = left + offset_x
+    right = right + offset_x
+    bottom = bottom + offset_y
 
     P = torch.zeros(4, 4)
 
@@ -70,8 +94,10 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     P[2, 3] = -(zfar * znear) / (zfar - znear)
     return P
 
+
 def fov2focal(fov, pixels):
     return pixels / (2 * math.tan(fov / 2))
 
+
 def focal2fov(focal, pixels):
-    return 2*math.atan(pixels/(2*focal))
+    return 2 * math.atan(pixels / (2 * focal))
