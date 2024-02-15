@@ -9,17 +9,23 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-import torch
-from torch import nn
-import numpy as np
-from gaussian_splatting.utils.graphics_utils import getWorld2View2, getProjectionMatrix
 from typing import Optional
+
+import numpy as np
+import torch
+from dreifus.camera import CameraCoordinateConvention, PoseType
+from dreifus.matrix import Pose, Intrinsics
+from dreifus.matrix.intrinsics_numpy import fov_to_focal_length
+from torch import nn
+
+from gaussian_splatting.utils.graphics_utils import getWorld2View2, getProjectionMatrix
+
 
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
                  image_name, uid,
                  cx: Optional[float] = None, cy: Optional[float] = None,
-                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda"
+                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device="cuda"
                  ):
         super(Camera, self).__init__()
 
@@ -37,7 +43,7 @@ class Camera(nn.Module):
             self.data_device = torch.device(data_device)
         except Exception as e:
             print(e)
-            print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device" )
+            print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device")
             self.data_device = torch.device("cuda")
 
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
@@ -59,14 +65,25 @@ class Camera(nn.Module):
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar,
                                                      fovX=self.FoVx, fovY=self.FoVy,
                                                      width=self.image_width, height=self.image_height,
-                                                     cx=self.cx, cy=self.cy).transpose(0,1).cuda()
+                                                     cx=self.cx, cy=self.cy).transpose(0, 1).cuda()
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+
+    def to_pose(self) -> Pose:
+        return GS_camera_to_pose(self)
+
+    def to_intrinsics(self) -> Intrinsics:
+        return GS_camera_to_intrinsics(self)
+
+    @staticmethod
+    def from_pose(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int):
+        return pose_to_GS_camera(pose, intrinsics, img_w, img_h)
+
 
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):
         self.image_width = width
-        self.image_height = height    
+        self.image_height = height
         self.FoVy = fovy
         self.FoVx = fovx
         self.znear = znear
@@ -76,3 +93,39 @@ class MiniCam:
         view_inv = torch.inverse(self.world_view_transform)
         self.camera_center = view_inv[3][:3]
 
+
+# ==========================================================
+# Conversion between Gaussian Splatting camera and dreifus Pose
+# ==========================================================
+
+
+def GS_camera_to_pose(camera: Camera) -> Pose:
+    pose = Pose(camera.R.transpose(), camera.T, camera_coordinate_convention=CameraCoordinateConvention.OPEN_CV, pose_type=PoseType.WORLD_2_CAM)
+    return pose
+
+
+def GS_camera_to_intrinsics(camera: Camera) -> Intrinsics:
+    fx = fov_to_focal_length(camera.FoVx, camera.image_width)
+    fy = fov_to_focal_length(camera.FoVy, camera.image_height)
+    cx = camera.cx
+    cy = camera.cy
+    intrinsics = Intrinsics(fx, fy, cx=cx, cy=cy)
+    return intrinsics
+
+
+def pose_to_GS_camera(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int) -> Camera:
+    fov_x = intrinsics.get_fovx(img_w)
+    fov_y = intrinsics.get_fovy(img_h)
+    cx = intrinsics.cx
+    cy = intrinsics.cy
+    dummy_img = torch.empty((3, img_h, img_w))
+
+    pose = pose.change_pose_type(PoseType.CAM_2_WORLD, inplace=False)
+    pose = pose.change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV, inplace=False)
+    pose = pose.change_pose_type(PoseType.WORLD_2_CAM, inplace=False)
+    T = pose.get_translation()
+    R = pose.get_rotation_matrix().transpose()
+
+    camera = Camera(0, R, T, fov_x, fov_y, dummy_img, None, None, None, cx=cx, cy=cy)
+
+    return camera
