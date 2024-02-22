@@ -118,7 +118,7 @@ def pose_to_GS_camera(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int
     fov_y = intrinsics.get_fovy(img_h)
     cx = intrinsics.cx
     cy = intrinsics.cy
-    dummy_img = torch.empty((3, img_h, img_w))
+    dummy_img = torch.empty((3, img_h, img_w))  # TODO: Find another way, s.t. we do not have to allocate this all the time
 
     pose = pose.change_pose_type(PoseType.CAM_2_WORLD, inplace=False)
     pose = pose.change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV, inplace=False)

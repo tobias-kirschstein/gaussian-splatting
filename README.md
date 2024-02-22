@@ -3,12 +3,21 @@ This is a library adaptation of the 3D Gaussian Splatting repo.
 All code has been moved into a `gaussian_splatting` module.  
 As a result, the repository can be installed via pip:
 ```bash
-pip install gaussian_splatting@git+https://github.com/tobias-kirschstein/gaussian-splatting.git
+TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6+PTX" pip install gaussian_splatting@git+https://github.com/tobias-kirschstein/gaussian-splatting.git
 ```
+Note, setting `TORCH_CUDA_ARCH_LIST` is optional and only necessary, if you intend to use different GPUs (e.g., on a compute cluster). In that case, specify the [relevant compute capabilities](https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/) instead of `"7.5 8.0 8.6"` 
 
-You can then import Gaussian Splatting's renderer via
+After installation you can import Gaussian Splatting's renderer via
 ```python
 from gaussian_splatting.gaussian_renderer import render
+```
+
+## Speed optimizations by DISTWAR
+The speed optimizations by [https://github.com/Accelsnow/diff-gaussian-rasterization-distwar](https://github.com/Accelsnow/diff-gaussian-rasterization-distwar) are automatically included and compiled upon installation.  
+Note that the speed optimization requires GPU compute capability `sm_70` or higher (i.e., GTX 1080 or lower does not work).  
+To use the speed optimization when running a script, you must set the `BW_IMPLEMENTATION` environment variable, e.g., via 
+```shell
+BW_IMPLEMENTATION=1 python scripts/train.py
 ```
 
 <hr/>
