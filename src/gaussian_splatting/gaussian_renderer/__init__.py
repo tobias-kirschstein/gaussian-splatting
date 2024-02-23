@@ -93,6 +93,7 @@ def render(viewpoint_camera,
     else:
         scales = pc.get_scaling
         rotations = pc.get_rotation
+        assert rotations.is_contiguous(), "rotations need to be contiguous to avoid rasterizer gradient bug!"
 
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.

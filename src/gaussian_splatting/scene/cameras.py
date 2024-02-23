@@ -9,7 +9,7 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -94,17 +94,48 @@ class MiniCam:
         self.camera_center = view_inv[3][:3]
 
 
+class RenderCam:
+    def __init__(self, width, height, R, T, FoVx, FoVy, cx: Optional[float] = None, cy: Optional[float] = None,
+                 znear: float = 0.01, zfar: float = 100,
+                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0,
+                 ):
+        self.R = R
+        self.T = T
+        self.FoVx = FoVx
+        self.FoVy = FoVy
+        self.image_width = width
+        self.image_height = height
+
+        self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
+        projection_matrix = getProjectionMatrix(znear=znear, zfar=zfar,
+                                                fovX=self.FoVx, fovY=self.FoVy,
+                                                width=width, height=height,
+                                                cx=cx, cy=cy).transpose(0, 1).cuda()
+        self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(projection_matrix.unsqueeze(0))).squeeze(0)
+        self.camera_center = self.world_view_transform.inverse()[3, :3]
+
+    def to_pose(self) -> Pose:
+        return GS_camera_to_pose(self)
+
+    def to_intrinsics(self) -> Intrinsics:
+        return GS_camera_to_intrinsics(self)
+
+    @staticmethod
+    def from_pose(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int, znear: float = 0.01, zfar: float = 100) -> 'RenderCam':
+        return pose_to_rendercam(pose, intrinsics, img_w, img_h, znear=znear, zfar=zfar)
+
+
 # ==========================================================
 # Conversion between Gaussian Splatting camera and dreifus Pose
 # ==========================================================
 
 
-def GS_camera_to_pose(camera: Camera) -> Pose:
+def GS_camera_to_pose(camera: Union[Camera, RenderCam]) -> Pose:
     pose = Pose(camera.R.transpose(), camera.T, camera_coordinate_convention=CameraCoordinateConvention.OPEN_CV, pose_type=PoseType.WORLD_2_CAM)
     return pose
 
 
-def GS_camera_to_intrinsics(camera: Camera) -> Intrinsics:
+def GS_camera_to_intrinsics(camera: Union[Camera, RenderCam]) -> Intrinsics:
     fx = fov_to_focal_length(camera.FoVx, camera.image_width)
     fy = fov_to_focal_length(camera.FoVy, camera.image_height)
     cx = camera.cx
@@ -127,5 +158,22 @@ def pose_to_GS_camera(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int
     R = pose.get_rotation_matrix().transpose()
 
     camera = Camera(0, R, T, fov_x, fov_y, dummy_img, None, None, None, cx=cx, cy=cy)
+
+    return camera
+
+
+def pose_to_rendercam(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int, znear: float = 0.01, zfar: float = 100) -> RenderCam:
+    fov_x = intrinsics.get_fovx(img_w)
+    fov_y = intrinsics.get_fovy(img_h)
+    cx = intrinsics.cx
+    cy = intrinsics.cy
+
+    pose = pose.change_pose_type(PoseType.CAM_2_WORLD, inplace=False)
+    pose = pose.change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV, inplace=False)
+    pose = pose.change_pose_type(PoseType.WORLD_2_CAM, inplace=False)
+    T = pose.get_translation()
+    R = pose.get_rotation_matrix().transpose()
+
+    camera = RenderCam(img_w, img_h, R, T, fov_x, fov_y, cx=cx, cy=cy, znear=znear, zfar=zfar)
 
     return camera
