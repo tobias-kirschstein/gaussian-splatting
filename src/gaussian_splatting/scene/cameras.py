@@ -98,6 +98,7 @@ class RenderCam:
     def __init__(self, width, height, R, T, FoVx, FoVy, cx: Optional[float] = None, cy: Optional[float] = None,
                  znear: float = 0.01, zfar: float = 100,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0,
+                 device: torch.device = torch.device('cuda'),
                  ):
         self.R = R
         self.T = T
@@ -106,11 +107,11 @@ class RenderCam:
         self.image_width = width
         self.image_height = height
 
-        self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
+        self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale), device=device).transpose(0, 1)
         projection_matrix = getProjectionMatrix(znear=znear, zfar=zfar,
                                                 fovX=self.FoVx, fovY=self.FoVy,
                                                 width=width, height=height,
-                                                cx=cx, cy=cy).transpose(0, 1).cuda()
+                                                cx=cx, cy=cy).transpose(0, 1).to(device)
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(projection_matrix.unsqueeze(0))).squeeze(0)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
 
@@ -162,7 +163,13 @@ def pose_to_GS_camera(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int
     return camera
 
 
-def pose_to_rendercam(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int, znear: float = 0.01, zfar: float = 100) -> RenderCam:
+def pose_to_rendercam(pose: Pose,
+                      intrinsics: Intrinsics,
+                      img_w: int,
+                      img_h: int,
+                      znear: float = 0.01,
+                      zfar: float = 100,
+                      device: torch.device = torch.device('cuda')) -> RenderCam:
     fov_x = intrinsics.get_fovx(img_w)
     fov_y = intrinsics.get_fovy(img_h)
     cx = intrinsics.cx
@@ -174,6 +181,6 @@ def pose_to_rendercam(pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int
     T = pose.get_translation()
     R = pose.get_rotation_matrix().transpose()
 
-    camera = RenderCam(img_w, img_h, R, T, fov_x, fov_y, cx=cx, cy=cy, znear=znear, zfar=zfar)
+    camera = RenderCam(img_w, img_h, R, T, fov_x, fov_y, cx=cx, cy=cy, znear=znear, zfar=zfar, device=device)
 
     return camera
