@@ -18,5 +18,5 @@ dependencies:
 
 
   - pip:
-    - submodules/diff-gaussian-rasterization
+    - submodules/diff-gaussian-rasterization-distwar
     - submodules/simple-knn

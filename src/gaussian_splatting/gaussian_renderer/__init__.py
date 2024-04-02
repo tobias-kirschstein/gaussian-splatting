@@ -55,6 +55,12 @@ def render(viewpoint_camera,
     except:
         pass
 
+    C = pc._features_dc.shape[2]
+    NUM_CHANNELS = 32
+
+    if C < NUM_CHANNELS:
+        bg_color = torch.cat([bg_color, torch.zeros((NUM_CHANNELS - C,), dtype=bg_color.dtype, device=bg_color.device)], dim=-1)
+
     # Set up rasterization configuration
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
@@ -100,8 +106,9 @@ def render(viewpoint_camera,
     shs = None
     colors_precomp = None
     if override_color is None:
-        if pipe.convert_SHs_python:
-            shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+        if True:
+        # if pipe.convert_SHs_python:  # Spherical Harmonics must always be computed in Python now, since rasterizer uses 32 channels
+            shs_view = pc.get_features.transpose(1, 2).view(-1, C, (pc.max_sh_degree+1)**2)
             dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
             dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
             sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
@@ -110,6 +117,10 @@ def render(viewpoint_camera,
             shs = pc.get_features
     else:
         colors_precomp = override_color
+
+    if C < NUM_CHANNELS:
+        G = colors_precomp.shape[0]
+        colors_precomp = torch.cat([colors_precomp, torch.zeros((G, NUM_CHANNELS - C), device=colors_precomp.device, dtype=colors_precomp.dtype)], dim=-1)
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     rasterizer_output = rasterizer(
@@ -127,7 +138,7 @@ def render(viewpoint_camera,
 
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
         # They will be excluded from value updates used in the splitting criteria.
-        return {"render": rendered_image,
+        return {"render": rendered_image[:C],
                 "viewspace_points": screenspace_points,
                 "visibility_filter": radii > 0,
                 "radii": radii,
@@ -137,7 +148,7 @@ def render(viewpoint_camera,
 
         # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
         # They will be excluded from value updates used in the splitting criteria.
-        return {"render": rendered_image,
+        return {"render": rendered_image[:C],
                 "viewspace_points": screenspace_points,
                 "visibility_filter" : radii > 0,
                 "radii": radii}
