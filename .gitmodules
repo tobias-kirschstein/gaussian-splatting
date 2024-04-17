@@ -8,5 +8,5 @@
 	path = SIBR_viewers
 	url = https://gitlab.inria.fr/sibr/sibr_core.git
 [submodule "submodules/diff-gaussian-rasterization-distwar"]
-	path = submodules/diff-gaussian-rasterization-distwar
+	path = submodules/dgr-distwar
 	url = https://github.com/tobias-kirschstein/diff-gaussian-rasterization-distwar.git
