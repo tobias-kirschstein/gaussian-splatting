@@ -58,7 +58,7 @@ def render(viewpoint_camera,
     C = pc._features_dc.shape[2]
     NUM_CHANNELS = 32
 
-    if C < NUM_CHANNELS:
+    if C < NUM_CHANNELS and not return_depth:
         bg_color = torch.cat([bg_color, torch.zeros((NUM_CHANNELS - C,), dtype=bg_color.dtype, device=bg_color.device)], dim=-1)
 
     # Set up rasterization configuration
@@ -118,7 +118,7 @@ def render(viewpoint_camera,
     else:
         colors_precomp = override_color
 
-    if C < NUM_CHANNELS:
+    if C < NUM_CHANNELS and not return_depth:
         G = colors_precomp.shape[0]
         colors_precomp = torch.cat([colors_precomp, torch.zeros((G, NUM_CHANNELS - C), device=colors_precomp.device, dtype=colors_precomp.dtype)], dim=-1)
 
