@@ -155,14 +155,14 @@ class ViserViewer:
                     event.client.camera.position = event.target.position
                     event.client.camera.wxyz = event.target.wxyz
 
-            self.server._queue(
+            self.server._websock_server.queue_message(
                 _messages.SetOrientationMessage(
                     name=name,
                     wxyz=tuple(R.wxyz)
                 )
             )
 
-            self.server._queue(
+            self.server._websock_server.queue_message(
                 _messages.SetPositionMessage(
                     name=name,
                     position=tuple(cam_to_world_pose.get_translation())
