@@ -55,7 +55,7 @@ def render(viewpoint_camera,
     except:
         pass
 
-    C = pc._features_dc.shape[2]
+    C = pc._features_dc.shape[2] if override_color is None else override_color.shape[1]
     NUM_CHANNELS = 32
 
     if C < NUM_CHANNELS and not return_depth:
