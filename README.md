@@ -20,6 +20,13 @@ To use the speed optimization when running a script, you must set the `BW_IMPLEM
 BW_IMPLEMENTATION=1 python scripts/train.py
 ```
 
+## gsplat
+The repository also ships `gsplat` which is interoperable with the existing Gaussian Splatting API
+```python
+from gaussian_splatting.gaussian_renderer import render_gsplat
+```
+If you have trouble compiling the gsplat CUDA kernels on Windows, try following https://github.com/nerfstudio-project/gsplat/blob/main/docs/INSTALL_WIN.md to install `gsplat` serpately.
+
 <hr/>
 
 # 3D Gaussian Splatting for Real-Time Radiance Field Rendering
