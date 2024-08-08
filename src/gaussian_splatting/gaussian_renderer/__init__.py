@@ -240,29 +240,14 @@ def render_gsplat(viewpoint_camera,
             "radii": radii}
 
 def render_radegs(viewpoint_camera,
-                  pc: GaussianModel,
-                  bg_color: torch.Tensor,
-                  scaling_modifier=1.0,
+                  pc : GaussianModel,
+                  pipe,
+                  bg_color : torch.Tensor,
+                  kernel_size: float = 0.0,
+                  scaling_modifier: float = 1.0,
                   override_color=None,
                   require_coord: bool = True,
                   require_depth: bool = True):
-    """
-    Parameters
-    ----------
-        viewpoint_camera
-        pc
-        bg_color: Background tensor (bg_color) must be on GPU!
-        scaling_modifier
-        override_color
-
-    Returns
-    -------
-        A dict with:
-         - "render"
-         - "viewspace_points"
-         - "visibility_filter"
-         - "radii"
-    """
 
     # Set up rasterization configuration
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
@@ -307,7 +292,7 @@ def render_radegs(viewpoint_camera,
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
     shs = pc.get_features
-    colors_precomp = None
+    colors_precomp = override_color
 
     rendered_image, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, rendered_median_depth, rendered_alpha, rendered_normal = rasterizer(
         means3D=means3D,
