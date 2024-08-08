@@ -16,6 +16,7 @@ from depth_diff_gaussian_rasterization import GaussianRasterizer as GaussianDept
 from diff_gaussian_rasterization_radegs import GaussianRasterizer as GaussianRasterizerRaDeGS
 from diff_gaussian_rasterization_radegs import GaussianRasterizationSettings as GaussianRasterizationSettingsRaDeGS
 from gaussian_splatting.scene import GaussianModel
+from gaussian_splatting.scene.gaussian_model_radegs import GaussianModelRaDeGS
 from gaussian_splatting.utils.sh_utils import eval_sh
 from gsplat import rasterization
 
@@ -128,7 +129,7 @@ def render(viewpoint_camera,
         colors_precomp = torch.cat([colors_precomp, torch.zeros((G, NUM_CHANNELS - C), device=colors_precomp.device,
                                                                 dtype=colors_precomp.dtype)], dim=-1)
 
-    # Rasterize visible Gaussians to image, obtain their radii (on screen). 
+    # Rasterize visible Gaussians to image, obtain their radii (on screen).
     rasterizer_output = rasterizer(
         means3D=means3D,
         means2D=means2D,
@@ -240,7 +241,7 @@ def render_gsplat(viewpoint_camera,
             "radii": radii}
 
 def render_radegs(viewpoint_camera,
-                  pc : GaussianModel,
+                  pc : GaussianModelRaDeGS,
                   pipe,
                   bg_color : torch.Tensor,
                   kernel_size: float = 0.0,
@@ -293,6 +294,18 @@ def render_radegs(viewpoint_camera,
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
     shs = pc.get_features
     colors_precomp = override_color
+
+    shs = None
+    colors_precomp = None
+    if override_color is None:
+        C = pc._features_dc.shape[2]
+        shs_view = pc.get_features.transpose(1, 2).view(-1, C, (pc.max_sh_degree + 1) ** 2)
+        dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+        dir_pp_normalized = dir_pp / dir_pp.norm(dim=1, keepdim=True)
+        sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
+        colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+    else:
+        colors_precomp = override_color
 
     rendered_image, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, rendered_median_depth, rendered_alpha, rendered_normal = rasterizer(
         means3D=means3D,
