@@ -13,6 +13,8 @@ import torch
 import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from depth_diff_gaussian_rasterization import GaussianRasterizer as GaussianDepthRasterizer
+from diff_gaussian_rasterization_radegs import GaussianRasterizer as GaussianRasterizerRaDeGS
+from diff_gaussian_rasterization_radegs import GaussianRasterizationSettings as GaussianRasterizationSettingsRaDeGS
 from gaussian_splatting.scene import GaussianModel
 from gaussian_splatting.utils.sh_utils import eval_sh
 from gsplat import rasterization
@@ -236,3 +238,97 @@ def render_gsplat(viewpoint_camera,
             "viewspace_points": info["means2d"],
             "visibility_filter": radii > 0,
             "radii": radii}
+
+def render_radegs(viewpoint_camera,
+                  pc: GaussianModel,
+                  bg_color: torch.Tensor,
+                  scaling_modifier=1.0,
+                  override_color=None,
+                  require_coord: bool = True,
+                  require_depth: bool = True):
+    """
+    Parameters
+    ----------
+        viewpoint_camera
+        pc
+        bg_color: Background tensor (bg_color) must be on GPU!
+        scaling_modifier
+        override_color
+
+    Returns
+    -------
+        A dict with:
+         - "render"
+         - "viewspace_points"
+         - "visibility_filter"
+         - "radii"
+    """
+
+    # Set up rasterization configuration
+    tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
+    tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
+    screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
+    try:
+        screenspace_points.retain_grad()
+    except:
+        pass
+
+    raster_settings = GaussianRasterizationSettingsRaDeGS(
+        image_height=int(viewpoint_camera.image_height),
+        image_width=int(viewpoint_camera.image_width),
+        tanfovx=tanfovx,
+        tanfovy=tanfovy,
+        kernel_size=kernel_size,
+        bg=bg_color,
+        scale_modifier=scaling_modifier,
+        viewmatrix=viewpoint_camera.world_view_transform,
+        projmatrix=viewpoint_camera.full_proj_transform,
+        sh_degree=pc.active_sh_degree,
+        campos=viewpoint_camera.camera_center,
+        prefiltered=False,
+        require_coord=require_coord,
+        require_depth=require_depth,
+        debug=pipe.debug
+    )
+
+    rasterizer = GaussianRasterizerRaDeGS(raster_settings=raster_settings)
+
+    means3D = pc.get_xyz
+    means2D = screenspace_points
+
+    # If precomputed 3d covariance is provided, use it. If not, then it will be computed from
+    # scaling / rotation by the rasterizer.
+    scales = None
+    rotations = None
+    cov3D_precomp = None
+    scales, opacity = pc.get_scaling_n_opacity_with_3D_filter
+    rotations = pc.get_rotation
+
+    # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
+    # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
+    shs = pc.get_features
+    colors_precomp = None
+
+    rendered_image, radii, rendered_expected_coord, rendered_median_coord, rendered_expected_depth, rendered_median_depth, rendered_alpha, rendered_normal = rasterizer(
+        means3D=means3D,
+        means2D=means2D,
+        shs=shs,
+        colors_precomp=colors_precomp,
+        opacities=opacity,
+        scales=scales,
+        rotations=rotations,
+        cov3D_precomp=cov3D_precomp)
+
+    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
+    # They will be excluded from value updates used in the splitting criteria.
+    return {"render": rendered_image,
+            "mask": rendered_alpha,
+            "expected_coord": rendered_expected_coord,
+            "median_coord": rendered_median_coord,
+            "expected_depth": rendered_expected_depth,
+            "median_depth": rendered_median_depth,
+            "viewspace_points": means2D,
+            "visibility_filter": radii > 0,
+            "radii": radii,
+            "normal": rendered_normal,
+            }

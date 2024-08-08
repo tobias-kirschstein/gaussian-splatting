@@ -12,6 +12,20 @@ After installation you can import Gaussian Splatting's renderer via
 from gaussian_splatting.gaussian_renderer import render
 ```
 
+A typical render call will look like this:
+```python
+from gaussian_splatting.scene.cameras import pose_to_rendercam
+from gaussian_splatting.gaussian_renderer import render
+from gaussian_splatting.scene.gaussian_model import GaussianModel
+from gaussian_splatting.arguments import PipelineParams2
+
+cam_2_world_pose = ...  # Convenient Pose() class from dreifus library
+intrinsics = ...  # Convenient Intrinsics() class from dreifus library
+gaussian_model = GaussianModel(sh_degree=0)
+gs_camera = pose_to_rendercam(cam_2_world_pose, intrinsics, W, H)
+output = render(gs_camera, gaussian_model, PipelineParams2(), bg_color)
+```
+
 ## Speed optimizations by DISTWAR
 The speed optimizations by [https://github.com/Accelsnow/diff-gaussian-rasterization-distwar](https://github.com/Accelsnow/diff-gaussian-rasterization-distwar) are automatically included and compiled upon installation.  
 Note that the speed optimization requires GPU compute capability `sm_70` or higher (i.e., GTX 1080 or lower does not work).  
@@ -25,7 +39,12 @@ The repository also ships `gsplat` which is interoperable with the existing Gaus
 ```python
 from gaussian_splatting.gaussian_renderer import render_gsplat
 ```
-If you have trouble compiling the gsplat CUDA kernels on Windows, try following https://github.com/nerfstudio-project/gsplat/blob/main/docs/INSTALL_WIN.md to install `gsplat` serpately.
+If you have trouble compiling the gsplat CUDA kernels on Windows, try following https://github.com/nerfstudio-project/gsplat/blob/main/docs/INSTALL_WIN.md to install `gsplat` separately.
+
+
+## RaDeGS
+
+TODO
 
 <hr/>
 
