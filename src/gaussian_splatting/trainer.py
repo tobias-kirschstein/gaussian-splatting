@@ -109,7 +109,7 @@ def run_gaussian_splatting(gaussian_model: Union[GaussianModel, GSplatModel, Gau
     if config.lambda_pos_reg > 0:
         initial_point_positions = gaussian_model.get_xyz.clone()
         vertex_index = IndexFlatL2(3)
-        vertex_index.add(initial_point_positions.detach().cpu().numpy())
+        vertex_index.add(np.ascontiguousarray(initial_point_positions.detach().cpu().numpy()))
 
     # ==========================================================
     # Optimization Loop
