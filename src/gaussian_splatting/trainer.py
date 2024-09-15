@@ -151,7 +151,8 @@ def run_gaussian_splatting(gaussian_model: Union[GaussianModel, GSplatModel, Gau
         # Position regularization
         if config.lambda_pos_reg > 0:
             gaussian_positions = gaussian_model.get_xyz
-            nearest_vertex_idxs = vertex_index.search(gaussian_positions.detach().cpu(), 1)[1][:, 0]
+            nearest_vertex_idxs = vertex_index.search(
+                np.ascontiguousarray(gaussian_positions.detach().cpu().numpy()), 1)[1][:, 0]
             closest_vertex_distance = gaussian_positions - initial_point_positions[nearest_vertex_idxs]
             closest_vertex_distance = closest_vertex_distance.norm(dim=-1).square().mean()
             loss = loss + config.lambda_pos_reg * closest_vertex_distance
