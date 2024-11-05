@@ -58,6 +58,8 @@ def render(viewpoint_camera,
     C = pc._features_dc.shape[2] if override_color is None else override_color.shape[1]
     NUM_CHANNELS = 32
 
+    assert len(bg_color) == C, f"bg_color tensor must have same number of channels as feature tensor. Got {len(bg_color)} vs {C}"
+
     if C < NUM_CHANNELS and not return_depth:
         bg_color = torch.cat([bg_color, torch.zeros((NUM_CHANNELS - C,), dtype=bg_color.dtype, device=bg_color.device)], dim=-1)
 
