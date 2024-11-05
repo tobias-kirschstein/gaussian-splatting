@@ -104,6 +104,8 @@ class RenderCam:
         self.T = T
         self.FoVx = FoVx
         self.FoVy = FoVy
+        self.cx = cx
+        self.cy = cy
         self.image_width = width
         self.image_height = height
 

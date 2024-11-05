@@ -20,3 +20,5 @@ dependencies:
   - pip:
     - submodules/diff-gaussian-rasterization-distwar
     - submodules/simple-knn
+    - gsplat  # For newer gsplat implementation
+    - diff_gaussian_rasterization_radegs@git+https://github.com/tobias-kirschstein/diff-gaussian-rasterization-radegs.git

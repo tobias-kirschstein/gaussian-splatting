@@ -101,3 +101,36 @@ def fov2focal(fov, pixels):
 
 def focal2fov(focal, pixels):
     return 2 * math.atan(pixels / (2 * focal))
+
+
+# the following functions depths_double_to_points and depth_double_to_normal are adopted from https://github.com/hugoycj/2dgs-gaustudio/blob/main/utils/graphics_utils.py
+def depths_double_to_points(view, depthmap1, depthmap2):
+    W, H = view.image_width, view.image_height
+    fx = W / (2 * math.tan(view.FoVx / 2.))
+    fy = H / (2 * math.tan(view.FoVy / 2.))
+    intrins_inv = torch.tensor(
+        [[1/fx, 0.,-W/(2 * fx)],
+        [0., 1/fy, -H/(2 * fy),],
+        [0., 0., 1.0]]
+    ).float().cuda()
+    grid_x, grid_y = torch.meshgrid(torch.arange(W)+0.5, torch.arange(H)+0.5, indexing='xy')
+    points = torch.stack([grid_x, grid_y, torch.ones_like(grid_x)], dim=0).reshape(3, -1).float().cuda()
+    rays_d = intrins_inv @ points
+    points1 = depthmap1.reshape(1,-1) * rays_d
+    points2 = depthmap2.reshape(1,-1) * rays_d
+    return points1.reshape(3,H,W), points2.reshape(3,H,W)
+
+
+
+def point_double_to_normal(view, points1, points2):
+    points = torch.stack([points1, points2],dim=0)
+    output = torch.zeros_like(points)
+    dx = points[...,2:, 1:-1] - points[...,:-2, 1:-1]
+    dy = points[...,1:-1, 2:] - points[...,1:-1, :-2]
+    normal_map = torch.nn.functional.normalize(torch.cross(dx, dy, dim=1), dim=1)
+    output[...,1:-1, 1:-1] = normal_map
+    return output
+
+def depth_double_to_normal(view, depth1, depth2):
+    points1, points2 = depths_double_to_points(view, depth1, depth2)
+    return point_double_to_normal(view, points1, points2)
