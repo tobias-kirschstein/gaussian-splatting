@@ -6,6 +6,7 @@ import torch
 from dreifus.matrix import Pose, Intrinsics
 from dreifus.util.visualizer import ImageWindow
 from elias.config import Config
+from elias.util.logger_bundle import LoggerBundle
 from faiss import IndexFlatL2
 from gaussian_splatting.arguments import PipelineParams2
 from gaussian_splatting.gaussian_renderer import render, render_gsplat, render_radegs
@@ -16,7 +17,6 @@ from gaussian_splatting.scene.gaussian_model_radegs import GaussianModelRaDeGS
 from gaussian_splatting.utils.graphics_utils import depth_double_to_normal, point_double_to_normal
 from gaussian_splatting.utils.loss_utils import l1_loss, ssim, l1_loss_appearance
 from gaussian_splatting.utils.viewer import GaussianViewer
-from topo.util.logging import LoggerBundle
 from tqdm import tqdm
 
 
