@@ -191,6 +191,8 @@ class ViserViewer:
                 camera = client.camera
 
                 cam_to_world = viser.transforms.SE3.from_rotation_and_translation(viser.transforms.SO3(camera.wxyz), camera.position).as_matrix()
+                if np.isnan(cam_to_world).any():
+                    continue
                 cam_to_world_pose = Pose(cam_to_world, camera_coordinate_convention=CameraCoordinateConvention.OPEN_CV, pose_type=PoseType.CAM_2_WORLD)
 
                 img_h = self.resolution_slider.value

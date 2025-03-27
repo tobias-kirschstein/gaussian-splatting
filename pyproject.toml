@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gaussian_splatting"
-version = "0.1.8"
+version = "0.1.9"
 description = "<<<ENTER_DESCRIPTION>>>"
 authors = [
     { name = "Tobias Kirschstein", email = "tobias.kirschstein@gmail.com" },
