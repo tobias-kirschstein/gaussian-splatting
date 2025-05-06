@@ -8,11 +8,13 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
+import os
+from typing import Dict
 
 import torch
 import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
-from depth_diff_gaussian_rasterization import GaussianRasterizer as GaussianDepthRasterizer
+from diff_gaussian_rasterization_features import GaussianRasterizer as GaussianFeatureRasterizer
 from diff_gaussian_rasterization_radegs import GaussianRasterizer as GaussianRasterizerRaDeGS
 from diff_gaussian_rasterization_radegs import GaussianRasterizationSettings as GaussianRasterizationSettingsRaDeGS
 from gaussian_splatting.scene import GaussianModel
@@ -26,8 +28,9 @@ def render(viewpoint_camera,
            pipe,
            bg_color: torch.Tensor,
            scaling_modifier=1.0,
+           separate_sh=True,
            override_color=None,
-           return_depth: bool = False):
+           use_trained_exp=False) -> Dict[str, torch.Tensor]:
     """
 
     Parameters
@@ -65,7 +68,7 @@ def render(viewpoint_camera,
 
     assert len(bg_color) == C, f"bg_color tensor must have same number of channels as feature tensor. Got {len(bg_color)} vs {C}"
 
-    if C < NUM_CHANNELS and not return_depth:
+    if 3 < C < NUM_CHANNELS:
         bg_color = torch.cat([bg_color, torch.zeros((NUM_CHANNELS - C,), dtype=bg_color.dtype, device=bg_color.device)],
                              dim=-1)
 
@@ -85,11 +88,13 @@ def render(viewpoint_camera,
         sh_degree=pc.active_sh_degree,
         campos=viewpoint_camera.camera_center,
         prefiltered=False,
-        debug=pipe.debug
+        debug=pipe.debug,
+        antialiasing=pipe.antialiasing
     )
 
-    if return_depth:
-        rasterizer = GaussianDepthRasterizer(raster_settings=raster_settings)
+    if C > 3:
+        # Use separate diff-gaussian-rasterization repo with N_CHANNELS=32 compiled CUDA
+        rasterizer = GaussianFeatureRasterizer(raster_settings=raster_settings)
     else:
         rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
@@ -102,6 +107,7 @@ def render(viewpoint_camera,
     scales = None
     rotations = None
     cov3D_precomp = None
+
     if pipe.compute_cov3D_python:
         cov3D_precomp = pc.get_covariance(scaling_modifier)
     else:
@@ -112,9 +118,10 @@ def render(viewpoint_camera,
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
     shs = None
+    dc = None
     colors_precomp = None
     if override_color is None:
-        if True:
+        if pipe.convert_SHs_python or C > 3:
             # if pipe.convert_SHs_python:  # Spherical Harmonics must always be computed in Python now, since rasterizer uses 32 channels
             shs_view = pc.get_features.transpose(1, 2).view(-1, C, (pc.max_sh_degree + 1) ** 2)
             dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
@@ -122,45 +129,63 @@ def render(viewpoint_camera,
             sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
             colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
         else:
-            shs = pc.get_features
+            if separate_sh:
+                dc, shs = pc.get_features_dc, pc.get_features_rest
+            else:
+                shs = pc.get_features
     else:
         colors_precomp = override_color
 
-    if C < NUM_CHANNELS and not return_depth:
+    if 3 < C < NUM_CHANNELS:
         G = colors_precomp.shape[0]
         colors_precomp = torch.cat([colors_precomp, torch.zeros((G, NUM_CHANNELS - C), device=colors_precomp.device,
                                                                 dtype=colors_precomp.dtype)], dim=-1)
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen).
-    rasterizer_output = rasterizer(
-        means3D=means3D,
-        means2D=means2D,
-        shs=shs,
-        colors_precomp=colors_precomp,
-        opacities=opacity,
-        scales=scales,
-        rotations=rotations,
-        cov3D_precomp=cov3D_precomp)
-
-    if return_depth:
-        rendered_image, radii, depth = rasterizer_output
-
-        # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
-        # They will be excluded from value updates used in the splitting criteria.
-        return {"render": rendered_image[:C],
-                "viewspace_points": screenspace_points,
-                "visibility_filter": radii > 0,
-                "radii": radii,
-                "depth": depth}
+    if separate_sh:
+        rendered_image, radii, depth_image = rasterizer(
+            means3D=means3D,
+            means2D=means2D,
+            dc=dc,
+            shs=shs,
+            colors_precomp=colors_precomp,
+            opacities=opacity,
+            scales=scales,
+            rotations=rotations,
+            cov3D_precomp=cov3D_precomp)
     else:
-        rendered_image, radii = rasterizer_output
+        rendered_image, radii, depth_image = rasterizer(
+            means3D=means3D,
+            means2D=means2D,
+            shs=shs,
+            colors_precomp=colors_precomp,
+            opacities=opacity,
+            scales=scales,
+            rotations=rotations,
+            cov3D_precomp=cov3D_precomp)
 
-        # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
-        # They will be excluded from value updates used in the splitting criteria.
-        return {"render": rendered_image[:C],
-                "viewspace_points": screenspace_points,
-                "visibility_filter": radii > 0,
-                "radii": radii}
+    if C > 3:
+        # If feature rasterizer was used, returned tensor has 32 channels. Only slice the actual used channels here
+        rendered_image = rendered_image[:C]
+
+    # Apply exposure to rendered image (training only)
+    if use_trained_exp:
+        exposure = pc.get_exposure_from_name(viewpoint_camera.image_name)
+        rendered_image = torch.matmul(rendered_image.permute(1, 2, 0), exposure[:3, :3]).permute(2, 0, 1) + exposure[:3, 3, None, None]
+
+    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
+    # They will be excluded from value updates used in the splitting criteria.
+    # rendered_image = rendered_image.clamp(0, 1)
+
+    out = {
+        "render": rendered_image,
+        "viewspace_points": screenspace_points,
+        "visibility_filter": (radii > 0).nonzero(),
+        "radii": radii,
+        "depth": depth_image
+    }
+
+    return out
 
 
 def render_gsplat(viewpoint_camera,
@@ -242,16 +267,16 @@ def render_gsplat(viewpoint_camera,
             "visibility_filter": radii > 0,
             "radii": radii}
 
+
 def render_radegs(viewpoint_camera,
-                  pc : GaussianModelRaDeGS,
+                  pc: GaussianModelRaDeGS,
                   pipe,
-                  bg_color : torch.Tensor,
+                  bg_color: torch.Tensor,
                   kernel_size: float = 0.0,
                   scaling_modifier: float = 1.0,
                   override_color=None,
                   require_coord: bool = True,
                   require_depth: bool = True):
-
     # Set up rasterization configuration
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)

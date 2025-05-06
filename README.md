@@ -27,6 +27,8 @@ output = render(gs_camera, gaussian_model, PipelineParams2(), bg_color)
 ```
 
 ## Speed optimizations by DISTWAR
+WARNING: DISTWAR does not work with more than 3 color channels!
+
 The speed optimizations by [https://github.com/Accelsnow/diff-gaussian-rasterization-distwar](https://github.com/Accelsnow/diff-gaussian-rasterization-distwar) are automatically included and compiled upon installation.  
 Note that the speed optimization requires GPU compute capability `sm_70` or higher (i.e., GTX 1080 or lower does not work).  
 To use the speed optimization when running a script, you must set the `BW_IMPLEMENTATION` environment variable, e.g., via 

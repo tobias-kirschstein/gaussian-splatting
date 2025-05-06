@@ -244,7 +244,7 @@ class GaussianViewer(ViserViewer):
     def _render(self, cam_to_world_pose: Pose, intrinsics: Intrinsics, img_w: int, img_h: int) -> Tuple[np.ndarray, np.ndarray]:
         gs_camera = pose_to_GS_camera(cam_to_world_pose, intrinsics, img_w, img_h)
 
-        render_result = render(gs_camera, self._gaussian_model, PipelineParams2(), self._background_color, return_depth=True)
+        render_result = render(gs_camera, self._gaussian_model, PipelineParams2(), self._background_color)
         rendered_image = render_result['render']
         rendered_depth = render_result['depth']
         color = (rendered_image.permute(1, 2, 0).detach().cpu() * 255).clamp(0, 255).numpy().astype(np.uint8)

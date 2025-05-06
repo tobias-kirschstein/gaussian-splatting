@@ -9,9 +9,9 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-from argparse import ArgumentParser, Namespace
-import sys
 import os
+import sys
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 
 
@@ -54,8 +54,10 @@ class ModelParams(ParamGroup):
         self._source_path = ""
         self._model_path = ""
         self._images = "images"
+        self._depths = ""
         self._resolution = -1
         self._white_background = False
+        self.train_test_exp = False
         self.data_device = "cuda"
         self.eval = False
         super().__init__(parser, "Loading Parameters", sentinel)
@@ -71,6 +73,7 @@ class PipelineParams2:
     convert_SHs_python: bool = False
     compute_cov3D_python: bool = False
     debug: bool = False
+    antialiasing: bool = False
 
 
 class PipelineParams(ParamGroup):
@@ -78,7 +81,36 @@ class PipelineParams(ParamGroup):
         self.convert_SHs_python = False
         self.compute_cov3D_python = False
         self.debug = False
+        self.antialiasing = False
         super().__init__(parser, "Pipeline Parameters")
+
+
+@dataclass
+class OptimizationParams2:
+    iterations: int = 30_000
+    position_lr_init: float = 0.00016
+    position_lr_final: float = 0.0000016
+    position_lr_delay_mult: float = 0.01
+    position_lr_max_steps: int = 30_000
+    feature_lr: float = 0.0025
+    opacity_lr: float = 0.025
+    scaling_lr: float = 0.005
+    rotation_lr: float = 0.001
+    exposure_lr_init: float = 0.01
+    exposure_lr_final: float = 0.001
+    exposure_lr_delay_steps: int = 0
+    exposure_lr_delay_mult: float = 0.0
+    percent_dense: float = 0.01
+    lambda_dssim: float = 0.2
+    densification_interval: int = 100
+    opacity_reset_interval: int = 3000
+    densify_from_iter: int = 500
+    densify_until_iter: int = 15_000
+    densify_grad_threshold: float = 0.0002
+    depth_l1_weight_init: float = 1.0
+    depth_l1_weight_final: float = 0.01
+    random_background: bool = False
+    optimizer_type: str = "default"
 
 
 class OptimizationParams(ParamGroup):
@@ -89,9 +121,13 @@ class OptimizationParams(ParamGroup):
         self.position_lr_delay_mult = 0.01
         self.position_lr_max_steps = 30_000
         self.feature_lr = 0.0025
-        self.opacity_lr = 0.05
+        self.opacity_lr = 0.025
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001
+        self.exposure_lr_init = 0.01
+        self.exposure_lr_final = 0.001
+        self.exposure_lr_delay_steps = 0
+        self.exposure_lr_delay_mult = 0.0
         self.percent_dense = 0.01
         self.lambda_dssim = 0.2
         self.densification_interval = 100
@@ -99,11 +135,10 @@ class OptimizationParams(ParamGroup):
         self.densify_from_iter = 500
         self.densify_until_iter = 15_000
         self.densify_grad_threshold = 0.0002
+        self.depth_l1_weight_init = 1.0
+        self.depth_l1_weight_final = 0.01
         self.random_background = False
-
-        # For RaDeGS
-        self.appearance_embeddings_lr = 0.001
-        self.appearance_network_lr = 0.001
+        self.optimizer_type = "default"
         super().__init__(parser, "Optimization Parameters")
 
 
