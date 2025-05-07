@@ -26,7 +26,18 @@ gs_camera = pose_to_rendercam(cam_2_world_pose, intrinsics, W, H)
 output = render(gs_camera, gaussian_model, PipelineParams2(), bg_color)
 ```
 
-## Speed optimizations by DISTWAR
+## Speed Optimizations by TamingGS
+The speed optimizations by TamingGS are automatically incorporated. Furthermore, support for rendering up to 32 channels is supported.
+For best performance, the original rasterizer is used when the regular 3 RGB channels are rendered, and a slightly more expensive rasterizer for larger number of rendering channels.
+Finally, the fused SSIM kernel can be used via 
+
+```python
+from gaussian_splatting.utils.loss_utils import fast_ssim
+
+ssim_loss = fast_ssim(rendered_img, target_img)
+```
+
+## Speed optimizations by DISTWAR (deprecated, only before v0.2)
 WARNING: DISTWAR does not work with more than 3 color channels!
 
 The speed optimizations by [https://github.com/Accelsnow/diff-gaussian-rasterization-distwar](https://github.com/Accelsnow/diff-gaussian-rasterization-distwar) are automatically included and compiled upon installation.  

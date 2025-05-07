@@ -27,7 +27,7 @@ class RasterizerTest(unittest.TestCase):
     def test_rasterizer(self):
         device = torch.device('cuda')
         C = 3
-        sh_degree = 1
+        sh_degree = 0
         points = torch.randn((5000, 3)) / 10
         colors = torch.randn((5000, 3))
 
@@ -36,7 +36,7 @@ class RasterizerTest(unittest.TestCase):
         gaussian_model.create_from_pcd(pointcloud)
         gaussian_model._features_dc.data = torch.randn((5000, 1, C), device=device)
         gaussian_model._features_rest.data = torch.empty((5000, sh_degree * 3, C), device=device)
-        gaussian_model.training_setup(OptimizationParams2(optimizer_type='default'))
+        gaussian_model.training_setup(OptimizationParams2(optimizer_type='sparse_adam'))
 
         intrinsics = Intrinsics(5000, 5000, 256, 256)
         pose = Pose(pose_type=PoseType.CAM_2_WORLD)
