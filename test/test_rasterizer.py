@@ -10,7 +10,7 @@ from dreifus.vector import Vec3
 from tqdm import tqdm
 
 from gaussian_splatting.arguments import PipelineParams2, OptimizationParams2
-from gaussian_splatting.gaussian_renderer import render
+from gaussian_splatting.gaussian_renderer import render, render_distwar
 from gaussian_splatting.scene import GaussianModel
 from gaussian_splatting.scene.cameras import pose_to_rendercam
 from gaussian_splatting.utils.graphics_utils import BasicPointCloud
@@ -60,10 +60,11 @@ class RasterizerTest(unittest.TestCase):
 
         progress = tqdm(range(10000))
         for i in progress:
-            render_output = render(render_cam, gaussian_model, PipelineParams2(convert_SHs_python=True), bg_color)
+            # render_output = render(render_cam, gaussian_model, PipelineParams2(convert_SHs_python=True), bg_color)
+            render_output = render_distwar(render_cam, gaussian_model, PipelineParams2(), bg_color)
             rendered_img = render_output['render']
 
-            image_buffer[:] = rendered_img[:3].permute(1, 2, 0).detach().cpu().numpy()
+            image_buffer[:] = rendered_img[-3:].permute(1, 2, 0).detach().cpu().numpy()
 
             Ll1 = l1_loss(rendered_img, target_img)
             loss = (0.8) * Ll1 + 0.2 * (1.0 - fast_ssim(rendered_img, target_img))
