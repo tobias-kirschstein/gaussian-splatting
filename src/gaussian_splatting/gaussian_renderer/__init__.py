@@ -9,7 +9,7 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 import os
-from typing import Dict
+from typing import Dict, List
 
 import torch
 import math
@@ -20,6 +20,7 @@ from diff_gaussian_rasterization_radegs import GaussianRasterizationSettings as 
 from diff_gaussian_rasterization_distwar import GaussianRasterizer as DistwarGaussianRasterizer
 from diff_gaussian_rasterization_distwar_features import GaussianRasterizer as DistwarGaussianFeatureRasterizer
 from gaussian_splatting.scene import GaussianModel
+from gaussian_splatting.scene.cameras import RenderCam
 from gaussian_splatting.scene.gaussian_model_radegs import GaussianModelRaDeGS
 from gaussian_splatting.utils.sh_utils import eval_sh
 from gsplat import rasterization
@@ -189,12 +190,13 @@ def render(viewpoint_camera,
 
     return out
 
+
 def render_distwar(viewpoint_camera,
-           pc: GaussianModel,
-           pipe,
-           bg_color: torch.Tensor,
-           scaling_modifier=1.0,
-           override_color=None):
+                   pc: GaussianModel,
+                   pipe,
+                   bg_color: torch.Tensor,
+                   scaling_modifier=1.0,
+                   override_color=None):
     """
 
     Parameters
@@ -396,6 +398,90 @@ def render_gsplat(viewpoint_camera,
     # They will be excluded from value updates used in the splitting criteria.
     return {"render": rendered_image,
             "viewspace_points": info["means2d"],
+            "visibility_filter": radii > 0,
+            "radii": radii}
+
+def render_gsplat_batched(viewpoint_cameras: List[RenderCam],  # [B]
+                          pcs: List[GaussianModel],  # [B]
+                          bg_colors: torch.Tensor,  # [B, 3]
+                          scaling_modifier=1.0,
+                          override_color=None):
+    """
+    Use gsplat's rasterizer to render multiple scenes from one camera each.
+
+    Parameters
+    ----------
+        viewpoint_cameras: List of cameras (one per scene)
+        pcs: List of Gaussian scenes
+        bg_colors: One background tensor for each scene. Must be on GPU!
+        scaling_modifier
+        override_color
+
+    Returns
+    -------
+        A dict with:
+         - "render"
+         - "viewspace_points"
+         - "visibility_filter"
+         - "radii"
+    """
+
+    # Set up rasterization configuration
+    Ks = []
+    for viewpoint_camera in viewpoint_cameras:
+        tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
+        tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
+        focal_length_x = viewpoint_camera.image_width / (2 * tanfovx)
+        focal_length_y = viewpoint_camera.image_height / (2 * tanfovy)
+        K = torch.tensor(
+            [
+                [focal_length_x, 0, viewpoint_camera.cx],
+                [0, focal_length_y, viewpoint_camera.cy],
+                [0, 0, 1],
+            ],
+            device=pcs[0]._xyz.device,
+        )
+        Ks.append(K)
+    Ks = torch.stack(Ks)
+    viewmats = torch.stack([viewpoint_camera.world_view_transform.transpose(0, 1) for viewpoint_camera in viewpoint_cameras])  # [B, 4, 4]
+
+    means3D = torch.stack([pc.get_xyz for pc in pcs])
+    opacity = torch.stack([pc.get_opacity for pc in pcs])
+    scales = torch.stack([pc.get_scaling * scaling_modifier for pc in pcs])
+    rotations = torch.stack([pc.get_rotation for pc in pcs])
+    if override_color is not None:
+        colors = override_color  # [B, N, 3]
+        sh_degree = None
+    else:
+        colors = torch.stack([pc.get_features for pc in pcs])  # [N, K, 3]
+        sh_degree = pcs[0].active_sh_degree
+
+    render_colors, render_alphas, info = rasterization(
+        means=means3D,  # [B, N, 3]
+        quats=rotations,  # [B, N, 4]
+        scales=scales,  # [B, N, 3]
+        opacities=opacity.squeeze(-1),  # [B, N,]
+        colors=colors,
+        viewmats=viewmats[:, None],  # [B, 1, 4, 4]
+        Ks=Ks[:, None],  # [B, 1, 3, 3]
+        backgrounds=bg_colors[:, None],  # [B, 1, 3]
+        width=int(viewpoint_cameras[0].image_width),
+        height=int(viewpoint_cameras[0].image_height),
+        packed=False,
+        sh_degree=sh_degree,
+    )
+    # [1, H, W, 3] -> [3, H, W]
+    rendered_image = render_colors[:, 0].permute(0, 3, 1, 2)
+    radii = info["radii"][:, 0]  # [N,]
+    try:
+        info["means2d"].retain_grad()  # [1, N, 2]
+    except:
+        pass
+
+    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
+    # They will be excluded from value updates used in the splitting criteria.
+    return {"render": rendered_image,
+            "viewspace_points": info["means2d"][:, 0],
             "visibility_filter": radii > 0,
             "radii": radii}
 
