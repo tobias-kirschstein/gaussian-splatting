@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gaussian_splatting"
-version = "0.2.3"
+version = "0.2.4"
 description = "<<<ENTER_DESCRIPTION>>>"
 authors = [
     { name = "Tobias Kirschstein", email = "tobias.kirschstein@gmail.com" },
@@ -20,6 +20,7 @@ classifiers = [
 # urls = { Documentation = "<<<ENTER_LINK_TO_DOCUMENTATION>>>" }
 # Main dependencies
 dependencies = [
+    "ninja",  # Needed, otherwise simple-knn extension may not be buildable ("Unknown architecture nocona")
     "torch",
     "plyfile==0.8.1",
     "tqdm",
