@@ -7,6 +7,14 @@ TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6+PTX" pip install gaussian_splatting@git+https:
 ```
 Note, setting `TORCH_CUDA_ARCH_LIST` is optional and only necessary, if you intend to use different GPUs (e.g., on a compute cluster). In that case, specify the [relevant compute capabilities](https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/) instead of `"7.5 8.0 8.6"` 
 
+### Trouble Shooting
+Ensure that you have PyTorch with CUDA support installed in the environment beforehand!  
+If you get the error 
+>No module named 'torch'
+
+try pip's `--no-build-isolation` flag.
+
+### Usage
 After installation you can import Gaussian Splatting's renderer via
 ```python
 from gaussian_splatting.gaussian_renderer import render
